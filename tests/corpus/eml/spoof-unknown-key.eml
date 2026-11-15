@@ -1,0 +1,26 @@
+From: CEO <ceo@victim.test>
+To: you@victim.test
+Subject: Wire now
+Date: Sun, 01 Nov 2026 12:00:00 +0000
+Message-ID: <7f18164af35dad56@fixture.test>
+MIME-Version: 1.0
+Content-Type: multipart/signed; micalg=pgp-sha256; protocol="application/pgp-signature"; boundary="sig"
+
+--sig
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+
+Please wire the invoice amount to the usual account.=0A=
+-- Dana
+
+--sig
+Content-Type: application/pgp-signature; name="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+
+iIYEABYIAC4WIQTOjQATriURHUsF8zDv1HLrAzkA6AUCavktAxAcY2VvQHZpY3Rp
+bS50ZXN0AAoJEO/UcusDOQDodj4BAMIOd1AYYdBdH5ehgw+E5+wriGC6EXcq2L3L
+4QJ7e2WuAQC7w6yY9+dFiEzQESAPe1uB1z/TqxpMtnGwj67DG76qCQ==
+=fkZw
+-----END PGP SIGNATURE-----
+--sig--

@@ -1,0 +1,34 @@
+From: Dana <dana@gpgarch.test>
+To: Dana <dana@gpgarch.test>
+Subject: filename
+Date: Sun, 01 Nov 2026 12:00:00 +0000
+Message-ID: <18744e18b386a76a@fixture.test>
+MIME-Version: 1.0
+Content-Type: multipart/encrypted; protocol="application/pgp-encrypted"; boundary="enc"
+
+--enc
+Content-Type: application/pgp-encrypted
+Content-Description: PGP/MIME version identification
+
+Version: 1
+
+--enc
+Content-Type: application/octet-stream; name="encrypted.asc"
+Content-Disposition: inline; filename="encrypted.asc"
+
+-----BEGIN PGP MESSAGE-----
+
+hF4DFAI1u887tzoSAQdAc0NA/waokxK94AWmjE5TqX/hN6mJwcgk0qbrYBWnoTww
+FlRTWQ99vXLwtQQ6VjYXy8vt31KAg5DiU+lYilcnbIAwXOgWv7yDDzqD6c9XzDS8
+0sDgAUTgbMQfDax/TB7Y3vTL7AD5VMqg7wc3kN+pfQo/kUEKXZOabUnNBU008nXY
+D0Vj4SxG9b9SReGMM0/lDeNnvdAcOWNWeSE4xEPJ/J2SbLYVTYzbraJ4UBoYnzgL
+X/GjPcZ/EjytcdyaHQ0Uqzq6xlsRjklXGZjoDZHfUmuJ0LO6wvbUt13hQPUXJA8e
+6ASkQnuCjTl9pV6usVSfPHRjBiP31+QwgT6G5z6XSqQZD01E0LHkYHn4KbFpP+pD
+pkM1ynF5WDUZZbYeTfRWp4UWlwROooSv7I7vbXfrRu66c3AE9qKPGa6ARHwasb+3
++NPFE0zPp4zKZTq6o3UvkjKkuz72l6Nr8P1SlfXpg9Nupbu35nTmpZ8AKd9QiSgT
+EPvXmIuoSxO6thVNpy8hlK2Fkq92vYKDzo/LNpegtKK08Nr9CwVSCo4UPZBppuYT
+zeWIO1iy9p3OIDrMaIrGd51JWHDNT/o5rNgFPff4+kEMhB2CWGqYJ5kL2pNjNmDl
+W6yWpIn3O98QDdIrpStCTcaDaDq2EWLg9QPeGbnmaUn2Ags=
+=QMO2
+-----END PGP MESSAGE-----
+--enc--

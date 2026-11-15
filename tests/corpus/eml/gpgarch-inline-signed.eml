@@ -1,0 +1,20 @@
+From: Dana <dana@gpgarch.test>
+To: Dana <dana@gpgarch.test>
+Subject: inline signed
+Date: Sun, 01 Nov 2026 12:00:00 +0000
+Message-ID: <67134ff89f3d3a81@fixture.test>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA512
+
+Inline PGP body. The merger closes Friday. Code word: BLUEFIN.
+
+-----BEGIN PGP SIGNATURE-----
+
+iIgEARYKADAWIQQevUYSJwh6+U/zNxJ1vV5K7IaC2wUCavktDBIcZGFuYUBncGdh
+cmNoLnRlc3QACgkQdb1eSuyGgttH6AD+IQXHGGXVcKPZOdeSpU1kzl8PIHQrtgh4
+O49RI4wKlVUBAJ88sKANmvrFqlJExk/IhBK6ogRAOcKJ1pZVCoSS4a4C
+=3h42
+-----END PGP SIGNATURE-----

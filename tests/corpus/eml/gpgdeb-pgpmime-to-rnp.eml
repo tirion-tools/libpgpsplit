@@ -1,0 +1,33 @@
+From: Dana <dana@gpgdeb.test>
+To: Tim <tim@rnp.test>
+Subject: to rnp
+Date: Sun, 01 Nov 2026 12:00:00 +0000
+Message-ID: <3221619a0d075afd@fixture.test>
+MIME-Version: 1.0
+Content-Type: multipart/encrypted; protocol="application/pgp-encrypted"; boundary="enc"
+
+--enc
+Content-Type: application/pgp-encrypted
+Content-Description: PGP/MIME version identification
+
+Version: 1
+
+--enc
+Content-Type: application/octet-stream; name="encrypted.asc"
+Content-Disposition: inline; filename="encrypted.asc"
+
+-----BEGIN PGP MESSAGE-----
+
+hF4Dbf1NZwpZcPsSAQdApmt2Sd8+7bgkgLEv4Ipi2X8WAsdXgYjirmqg8G7FLEYw
+TtiSA6OBvKUF5zwo0Dl+3huS4CwNq5Jp51i8ZSiEQEBUIezC4vs4Ya2Y04mXlOKl
+0sCqAW+4vgU9QBYQVi/jWJO2AZ9msS77FsncBNoALF/axveN97zqbN3a+Hak70Ec
+GAuceeQOjAtghuAWHwREasM1O16keaXMfNEw/HUQ+Gg54FW6ZUUaSd2BYZLM5AhC
+wOPZIVnr9DDlYtaknDCJrphy9ZvySBVhfS1k614Lmw3+pgYuF8TZgGw6wJWxekmb
+VImh2nn4VDWK8ARGL+tcd0K/DO/cn7mQskvgVQFtNrEVJLt4wN8uFML85lIVqHxj
+rjoFStuLHkz1vBHQM78ndHuvKVMjviaQcpjAd5vD7IOpJzewbTetpk/BBJeC9BP2
+VNaYyCY95oOVSLH3gfvdGu3Pgvj2N4PrU+LZeEPY25Rx4ylTTzQbmH1h6ZNlOmZG
+QBAQyx596BOR8Naguo9vfGHjyQJa/4eVKZlTT0/Wb9VBDA/Qy8HIk6f0Bz38VWJQ
+Qt5p3AuBs/cDrc/5vLDZeY/S4pKO5m2YlBMZWNM=
+=CYQv
+-----END PGP MESSAGE-----
+--enc--

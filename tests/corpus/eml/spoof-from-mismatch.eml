@@ -1,0 +1,26 @@
+From: Dana <dana@gpgdeb.test>
+To: you@victim.test
+Subject: Invoice
+Date: Sun, 01 Nov 2026 12:00:00 +0000
+Message-ID: <4a7c70dcb524cbd4@fixture.test>
+MIME-Version: 1.0
+Content-Type: multipart/signed; micalg=pgp-sha256; protocol="application/pgp-signature"; boundary="sig"
+
+--sig
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+
+Please wire the invoice amount to the usual account.=0A=
+-- Dana
+
+--sig
+Content-Type: application/pgp-signature; name="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+
+iIgEABYIADAWIQRskLpv3MLUVCLvX4e9WuuSXFlgHgUCavktAxIcbWFsbG9yeUBl
+dmlsLnRlc3QACgkQvVrrklxZYB6EugD8Colsbrc5nmHo3+bm8lzrabmCexf9RFas
+yUpXc0/5HUsA/j5MNeYDCoznUWVIqmDsapPiMzxiJZcyXPDN2DVHnpoE
+=vTnS
+-----END PGP SIGNATURE-----
+--sig--

@@ -1,0 +1,26 @@
+From: Vic <v6@sq.test>
+To: Vic <v6@sq.test>
+Subject: v6 signed
+Date: Sun, 01 Nov 2026 12:00:00 +0000
+Message-ID: <a294adeb620b5f89@fixture.test>
+MIME-Version: 1.0
+Content-Type: multipart/signed; micalg=pgp-sha512; protocol="application/pgp-signature"; boundary="sig"
+
+--sig
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+
+Please wire the invoice amount to the usual account.=0A=
+-- Dana
+
+--sig
+Content-Type: application/pgp-signature; name="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+
+wpgGABsKAAAAKQWCavktAiIhBkr2S3N7t6JQycV4KhJ21AwaC6D4elYI902b32PI
+cujkAAAAAMh7IF8zsRr7mPw2MvM9lzXrM/66sb8HouFMvUkln4X88tw7j6XCTpnN
+GzCy+YpX+MedNRhx9cru+pem7XVYVDVGivzFQsqYUaNOYsR1Qo6ys2N0uNFPfp0i
+PK9aE+3qJxIHCg==
+-----END PGP SIGNATURE-----
+--sig--

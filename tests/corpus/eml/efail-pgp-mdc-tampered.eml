@@ -1,0 +1,29 @@
+From: Eve <eve@evil.test>
+To: Dana <dana@gpgdeb.test>
+Subject: Re: invoice
+Date: Sun, 01 Nov 2026 12:00:00 +0000
+Message-ID: <271762459e9f2375@fixture.test>
+MIME-Version: 1.0
+Content-Type: multipart/encrypted; protocol="application/pgp-encrypted"; boundary="enc"
+
+--enc
+Content-Type: application/pgp-encrypted
+Content-Description: PGP/MIME version identification
+
+Version: 1
+
+--enc
+Content-Type: application/octet-stream; name="encrypted.asc"
+Content-Disposition: inline; filename="encrypted.asc"
+
+-----BEGIN PGP MESSAGE-----
+
+hF4D8FUlHG+EwnoSAQdAx5D1PpM5qQzoGFl/hITs19wDVPnaYiGikJXeGIoj2EEw
+zGQM1TCEwRbrfFBPmV1S42T4XiLBDH9WkIjiv6gZNNbuedktRAv+nxeTQFvlFRse
+0qgBNb68qIOUBRlmYldOKqVYg4i+3llF7bjk1dL6l9+ZUVGGZNVOBEQ4G7li4PCc
+wnm0djgGaZoqNrSeND7RvY0m/B9I8ddiEuO+gs5L7LMwvixLqhrz1he49jdREUKq
+SUmEoEOMsnjkF79RQHw0VfFqCSlWkCVsmT4ubtjKAy5ZfSbTKnaNGfq+mxZoCkRM
+BwAQV6AOX93Q42pleZLmqmUhxK/G+SwD3j0=
+=L+xq
+-----END PGP MESSAGE-----
+--enc--

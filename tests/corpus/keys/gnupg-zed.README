@@ -1,0 +1,6 @@
+Kept from a 2026-11-15 run of gen-gnupg.sh in the pinned Arch image (GnuPG 2.4.9-4, upstream): GnuPG exported
+this unprotected Ed25519 primary secret key with a non-minimal MPI (bit count 256, first byte 0x00) and a checksum
+over those bytes (0x0f04). rPGP 0.21.1 ("Invalid checksum") and Sequoia 2.4.2 ("Malformed MPI") both refuse the
+key as exported; pgpsplit re-encodes the MPI before parsing (canonical_secret_mpis). The key is a
+throwaway test key ("Dana (gpgarch default) <dana@gpgarch.test>"); enc-signed.eml is signed by it and encrypted
+to it. Happens to about 1 in 256 GnuPG Ed25519 keys, so the generated fixtures only hit it by chance.

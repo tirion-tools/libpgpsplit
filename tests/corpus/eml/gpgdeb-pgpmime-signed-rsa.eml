@@ -1,0 +1,33 @@
+From: Rex <rex@gpgdeb.test>
+To: Rex <rex@gpgdeb.test>
+Subject: signed rsa
+Date: Sun, 01 Nov 2026 12:00:00 +0000
+Message-ID: <0112aca73aa0d18e@fixture.test>
+MIME-Version: 1.0
+Content-Type: multipart/signed; micalg=pgp-sha256; protocol="application/pgp-signature"; boundary="sig"
+
+--sig
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+
+Please wire the invoice amount to the usual account.=0A=
+-- Dana
+
+--sig
+Content-Type: application/pgp-signature; name="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+
+iQHEBAABCAAuFiEEoeWI1l0v4jv8aKQBLQzD0r19qeMFAmr5LQkQHHJleEBncGdk
+ZWIudGVzdAAKCRAtDMPSvX2p49BvDACuZWdj5RIIWeVpFeCRpXvv8lQ6LXUpE83I
+pajh5OJapfDrqVh3INczcHPPbEjVEjsQuLL0Ds2jQ4hi4FsXfvTIe9njf37c5Drm
+PNXHaew3Gqj/UPO+z99EpoVSVv42mvng25BjGcP01q5ZQh+6apG0NnrIRP6dNdZx
+EbJe+TI247UjCPlvlxFb09aGQRLSRrDDiRSk4fh7BQRxmUSDuZBMPHvufXNwiSl/
+jaFmsG3N9qvEIel11KHqMESIIKuL/MNWeIKKLSAj0m/cMxORozfPnJcZyquSwdWr
+SiS3/YqQrIErHM6+F5UHxRYvhDNAumLP9KsQP0JRrIsQCHE5ahSbV1DvxTWnh4xA
+i2Nh+B/Jt+QGQnPDrlgKqz8zFbckG/DGBDLtvXXa6uHZxPTVXn1MVhh50BNqmLH2
+zKXHFirxfLnr7ImSOw4SPTV2hR4nBwbMhPtGRGb6PM26276n9omyCtmQMuDSPsjg
+8jUPTuGnmr1WH2PQOORnfobSx2fMB2A=
+=4hTY
+-----END PGP SIGNATURE-----
+--sig--

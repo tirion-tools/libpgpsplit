@@ -1,0 +1,26 @@
+From: Tim <tim@rnp.test>
+To: Tim <tim@rnp.test>
+Subject: rnp signed
+Date: Sun, 01 Nov 2026 12:00:00 +0000
+Message-ID: <bba675bc3a8b8770@fixture.test>
+MIME-Version: 1.0
+Content-Type: multipart/signed; micalg=pgp-sha256; protocol="application/pgp-signature"; boundary="sig"
+
+--sig
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+
+Please wire the invoice amount to the usual account.=0A=
+-- Dana
+
+--sig
+Content-Type: application/pgp-signature; name="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+
+wnsEABYIACMWIQTVhJh5ysKatFF1EkwWeoOQbP1icgUCavktAwUDAAAAAAAKCRAWeoOQbP1icmbS
+AP9Joow++nRzfLC0QgYMsHKrWrRoovMULt7ryuYuBPnAKQD/RAmbB09MMACV5X2LcjJU6hsTQ9ur
+se9apjJJz6rxcAM=
+=9YQ6
+-----END PGP SIGNATURE-----
+--sig--

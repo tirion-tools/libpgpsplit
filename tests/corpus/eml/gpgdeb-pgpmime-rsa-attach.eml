@@ -1,0 +1,71 @@
+From: Rex <rex@gpgdeb.test>
+To: Rex <rex@gpgdeb.test>
+Subject: rsa attach
+Date: Sun, 01 Nov 2026 12:00:00 +0000
+Message-ID: <c382a6390465f92e@fixture.test>
+MIME-Version: 1.0
+Content-Type: multipart/encrypted; protocol="application/pgp-encrypted"; boundary="enc"
+
+--enc
+Content-Type: application/pgp-encrypted
+Content-Description: PGP/MIME version identification
+
+Version: 1
+
+--enc
+Content-Type: application/octet-stream; name="encrypted.asc"
+Content-Disposition: inline; filename="encrypted.asc"
+
+-----BEGIN PGP MESSAGE-----
+
+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
+OPtI2V70lEpA4BwXvRDyMNlRNaEWAp0D
+=fz5D
+-----END PGP MESSAGE-----
+--enc--

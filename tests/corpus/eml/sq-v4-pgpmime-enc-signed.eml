@@ -1,0 +1,35 @@
+From: Val <v4@sq.test>
+To: Val <v4@sq.test>
+Subject: v4
+Date: Sun, 01 Nov 2026 12:00:00 +0000
+Message-ID: <2a8e29dd7216a5b8@fixture.test>
+MIME-Version: 1.0
+Content-Type: multipart/encrypted; protocol="application/pgp-encrypted"; boundary="enc"
+
+--enc
+Content-Type: application/pgp-encrypted
+Content-Description: PGP/MIME version identification
+
+Version: 1
+
+--enc
+Content-Type: application/octet-stream; name="encrypted.asc"
+Content-Disposition: inline; filename="encrypted.asc"
+
+-----BEGIN PGP MESSAGE-----
+
+wWwGFQRcsVzNzNj6bDizkwG5V1dU6fjZGxIBB0Au1LT6Yc49UaEovWvHCPfPzJfh
+hruXxvWxzQltTJTbPDDzpdpH7DKP+ftyVeqPJrPsHF3cAXaqVsLsviBzVfCVsSF0
+wi7+xV/uE10PEBPMd6bSwRYCCQIG0lydv7oZMzv5u7WxQbX4/zEK/gdKEiVkX2h2
+Ai+XPrUU/G2+LY+qbToLp64M7qhyW8vXlMCHMKVNWzJBgwgVGjhApgeOEu5zFwpg
+dH9n+er1MyeZJkTG/rudfaxYyMYCk7eQKgXIK4do6u2usCUryh255BoWRle//A/U
+A8bTj3sMs5gnBLjRBKAyHq84iJFxfFmx9wwfVaxrn/3kt26u9on5/yjIleB5WbDB
+Pg4hL8UpHbLg8ABS1kwOW0xgcndAco3F5cGKE7932ZumlY5REOedJrLBa2ac2+wn
+SpMNDG+gGs859dAoOqlnNNAwigXw2SHrs7hZNnCO0mP+/NchpRmaqJsSjCJkL8TJ
+N4Zw3cduB4nkyynA8P11LYbPUk0dbagHremDIrdlYMjx+ArdVLc2qBrVLpnDanQc
+nXraAE/b0wbm6YmUZGlKnpKBsJ11SSyvd3iPhyDFDSCu6lZi4wdXAmhSIDW1zHhI
+fzJumERwqEMB6uLPyaI/4hoIxQaPY8GEl3zExS9Gr0/Rez9M8nc6rRBVvp4xkgMi
+JaU5mK0EhNl0CUfVjVZg42HM6cAZegCFryciJd0z8OqSpQcA6TgSeN940GZ8ryll
+hB5UNZPGeg==
+-----END PGP MESSAGE-----
+--enc--

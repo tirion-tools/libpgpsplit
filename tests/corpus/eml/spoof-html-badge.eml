@@ -1,0 +1,9 @@
+From: Dana <dana@gpgdeb.test>
+To: you@victim.test
+Subject: Signed invoice
+Date: Sun, 01 Nov 2026 12:00:00 +0000
+Message-ID: <317b05fe1df19f33@fixture.test>
+MIME-Version: 1.0
+Content-Type: text/html
+
+<table style="border:1px solid green"><tr><td>&#x2714; Good signature from Dana &lt;dana@gpgdeb.test&gt; (verified)</td></tr></table><p>Pay EVIL Ltd.</p>

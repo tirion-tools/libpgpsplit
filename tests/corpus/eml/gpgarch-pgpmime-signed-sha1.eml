@@ -1,0 +1,26 @@
+From: Dana <dana@gpgarch.test>
+To: Dana <dana@gpgarch.test>
+Subject: signed sha1
+Date: Sun, 01 Nov 2026 12:00:00 +0000
+Message-ID: <40e8758796955c75@fixture.test>
+MIME-Version: 1.0
+Content-Type: multipart/signed; micalg=pgp-sha1; protocol="application/pgp-signature"; boundary="sig"
+
+--sig
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+
+Please wire the invoice amount to the usual account.=0A=
+-- Dana
+
+--sig
+Content-Type: application/pgp-signature; name="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+
+iIgEABYCADAWIQQevUYSJwh6+U/zNxJ1vV5K7IaC2wUCavktDBIcZGFuYUBncGdh
+cmNoLnRlc3QACgkQdb1eSuyGgttlygD/a58QMI7Tw3dJSlg9KnWPrjxZdRVPLFqj
+zGAFaGjQ978BALWlNr0hs5P/6HNTlXva4dlu43yR9OXfks4Z+NBesX0H
+=QAYQ
+-----END PGP SIGNATURE-----
+--sig--

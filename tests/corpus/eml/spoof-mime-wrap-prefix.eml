@@ -1,0 +1,35 @@
+From: Dana <dana@gpgdeb.test>
+To: you@victim.test
+Subject: Invoice
+Date: Sun, 01 Nov 2026 12:00:00 +0000
+Message-ID: <4a7c70dcb524cbd4@fixture.test>
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="wrap"
+
+--wrap
+Content-Type: text/html
+
+<p>New bank details: IBAN XX00 EVIL. Please pay today.</p><div style="display:none">
+--wrap
+Content-Type: multipart/signed; micalg=pgp-sha256; protocol="application/pgp-signature"; boundary="sig"
+
+--sig
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+
+Please wire the invoice amount to the usual account.=0A=
+-- Dana
+
+--sig
+Content-Type: application/pgp-signature; name="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+
+iIcEABYIAC8WIQT1m+CDRxtKd4EDinZMhp/R1eAjCQUCavktCREcZGFuYUBncGdk
+ZWIudGVzdAAKCRBMhp/R1eAjCbhZAP9mMkx1EnbKzS3UfwSAbLCAmyjLWEVDs2wu
+QE8kK+bVHQD/fVftGx9+7QJBbMQwT5/4/J9xus1LysokaH3vBwoFvwM=
+=FUAw
+-----END PGP SIGNATURE-----
+--sig--
+
+--wrap--

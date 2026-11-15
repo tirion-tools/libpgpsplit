@@ -1,0 +1,31 @@
+From: Tim <tim@rnp.test>
+To: Tim <tim@rnp.test>
+Subject: rnp
+Date: Sun, 01 Nov 2026 12:00:00 +0000
+Message-ID: <b59e53d84f9dda71@fixture.test>
+MIME-Version: 1.0
+Content-Type: multipart/encrypted; protocol="application/pgp-encrypted"; boundary="enc"
+
+--enc
+Content-Type: application/pgp-encrypted
+Content-Description: PGP/MIME version identification
+
+Version: 1
+
+--enc
+Content-Type: application/octet-stream; name="encrypted.asc"
+Content-Disposition: inline; filename="encrypted.asc"
+
+-----BEGIN PGP MESSAGE-----
+
+wV4Dbf1NZwpZcPsSAQdALy03Bp+VTueBQiMIDDRF1/bPEn0lpH2mt76iP/I7TwAwA5Qtvu/CIVUB
+r3gerLFP/otFGgvZk+j8z9tQTUPGEuw6d8/VLYiGwKuY8eOaAtV00sCYAStxXOja9vdlR4WDxXKD
+Sh2fbZlGU6y1OcNRZEv0uIMc9AWTiXt7mZxBKtUxTHEhEKudZDZzoqNFwH/rMg4yP3uzcyY3JB8e
+6RQjfZ6t6VGIKaAoOSmck6xV4jvTWrRcHmbMWiKJjN8PEnfA4Ml+xnUiLtz4HmUbkM0vM5krdATw
+VFv0CW6Glp/FEuleHINH+XZea4zPgU7pBurl29hQqUXyaOU1YRQb1JgplFwV/5HRfzNnEo6zLRjv
+7uB7bVRQ6Lk6P7sP3TeT8A64F2ht7xwuthQfunGMXU5R8UeFYy3Cm746rrjSSiGWS4w6ZciGzjJf
+E7Ugpa0hKB1BSwTWkwss3fPngruzH4hxvGoUjln+UaLKDrg3/bIPKYYNnK++YFZDfCcV7mnulINf
+zyuu2ZFromKj3oQyFCPXqCiNixCJIBYWLYTOdcyKwlX9heV5p2J8PNDE1l8=
+=FdfZ
+-----END PGP MESSAGE-----
+--enc--

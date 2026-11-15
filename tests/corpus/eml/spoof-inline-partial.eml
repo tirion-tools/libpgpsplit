@@ -1,0 +1,24 @@
+From: Dana <dana@gpgdeb.test>
+To: you@victim.test
+Subject: inline
+Date: Sun, 01 Nov 2026 12:00:00 +0000
+Message-ID: <578238bf027815b9@fixture.test>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+
+URGENT: new bank details below are confirmed by my signature:
+IBAN XX00 EVIL
+
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA512
+
+Inline PGP body. The merger closes Friday. Code word: BLUEFIN.
+-----BEGIN PGP SIGNATURE-----
+
+iIcEARYKAC8WIQT1m+CDRxtKd4EDinZMhp/R1eAjCQUCavktCREcZGFuYUBncGdk
+ZWIudGVzdAAKCRBMhp/R1eAjCaxAAQCrslOCyZD85AOsixEnUbI8i8ho1aZJlRru
+uAOPiqhPAwD+KoeYA4qS/bGet26XW2in/VRgrWoLhniwWanxy6ySdgU=
+=43Mp
+-----END PGP SIGNATURE-----
+
+P.S. ignore the IBAN above
