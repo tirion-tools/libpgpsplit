@@ -1,114 +1,208 @@
-//! pgpsplit: one OpenPGP operation per process on rPGP. `proto/crypto.proto` has the descriptor contract.
+//! pgpsplit: OpenPGP split decryption and verification on rPGP.
 //!
-//! Two modes, chosen by the launcher kind:
-//! - [`Mode::Keyed`] (`--kind=crypto-keyed`): OP_UNWRAP parses only the PKESK packets in front of the encrypted payload
-//!   and returns the session key; OP_IMPORT_KEY strips the passphrase and canonicalises GnuPG's non-minimal
-//!   secret MPIs ([`mpi::canonical_secret_mpis`]).
-//! - [`Mode::Keyless`] (`--kind=crypto`): decrypt with a session key, verify, cert info. Refuses secret keys.
+//! The API is split by what each half may hold:
+//! - [`keyed`] takes secret keys: [`keyed::unwrap`] parses only the PKESK packets in front of the encrypted payload and
+//!   returns the session key; [`keyed::import_key`] removes the passphrase and canonicalises GnuPG's non-minimal
+//!   secret MPIs ([`canonical_secret_mpis`]).
+//! - [`keyless`] never takes a secret key: decrypt with a session key, verify, certificate info. It parses the
+//!   attacker-controlled payload (decompression, literal data, signatures).
 //!
-//! Policy decided here: SED (no integrity) is never decrypted; SEIPDv1 is read completely and its MDC checked
-//! before any plaintext leaves; GnuPG OCB is accepted; plaintext is capped at 64 MiB (decompression bombs); SHA-1/MD5
-//! data signatures are weak, never good; the literal-data file name is never returned. There is no session-key
-//! cache anywhere: the session key exists in the caller only between the two helper runs.
+//! Run each half in its own process: the process holding the key then never parses the payload, and the process
+//! parsing the payload never holds the key.
+//!
+//! Policy decided here: SED (no integrity) is never decrypted, and is refused before any key is used; SEIPDv1 is read
+//! completely and its MDC checked before any plaintext leaves; GnuPG OCB is accepted; plaintext is capped at
+//! [`MAX_PLAINTEXT`] (decompression bombs); SHA-1/MD5/RIPEMD-160 data signatures are weak, never good; the literal-data
+//! file name is never returned. There is no session-key cache: the session key exists only in the caller.
 
-pub mod cert;
-pub mod mpi;
-pub mod ops;
+mod cert;
+pub mod keyed;
+pub mod keyless;
+mod mpi;
+mod packets;
 
-use proto::v1::crypto::{CryptoRequest, CryptoResponse, Op, Reason, Status};
-use prost::Message as _;
+pub use mpi::canonical_secret_mpis;
 
-/// Largest request (fd 0) and largest plaintext released.
-pub const MAX_REQUEST: u64 = 64 << 20;
+/// Largest plaintext (and largest dearmored input) released.
 pub const MAX_PLAINTEXT: u64 = 64 << 20;
-const MAX_DETAIL: usize = 512;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Mode {
-    Keyed,
-    Keyless,
+/// [`SignatureVerdict::why`] bits for [`SigStatus::KeyInvalid`].
+pub const WHY_REVOKED: u32 = 1;
+pub const WHY_NO_VALID_BINDING: u32 = 2;
+pub const WHY_NOT_SIGNING_CAPABLE: u32 = 4;
+pub const WHY_EXPIRED_AT_SIGNING: u32 = 8;
+pub const WHY_PREDATES_KEY: u32 = 16;
+
+/// Why an operation was refused. The discriminants are stable, so a wire format can carry the reason as an integer.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[repr(u8)]
+pub enum Reason {
+    /// The input is not valid for this operation (an empty session key, an encrypted message to verify).
+    InvalidRequest = 1,
+    /// The OpenPGP data does not parse.
+    Malformed = 2,
+    NotEncrypted = 3,
+    /// SED (no MDC): never decrypted (EFAIL).
+    NoIntegrity = 4,
+    /// MDC/AEAD check failed: no plaintext released.
+    IntegrityFailure = 5,
+    NoKey = 6,
+    BadPassphrase = 7,
+    BadKey = 8,
+    /// Plaintext over [`MAX_PLAINTEXT`] (decompression bombs included).
+    TooLarge = 9,
+    Unsupported = 10,
+    DecryptFailed = 11,
 }
 
-impl Mode {
-    pub fn allows(self, op: Op) -> bool {
-        match self {
-            Mode::Keyed => matches!(op, Op::Unwrap | Op::ImportKey),
-            Mode::Keyless => matches!(
-                op,
-                Op::DecryptSession
-                    | Op::VerifyDetached
-                    | Op::VerifyCleartext
-                    | Op::VerifyMessage
-                    | Op::CertInfo
-            ),
+/// A refused operation. `detail` is diagnostic only; it never carries plaintext.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Refusal {
+    pub reason: Reason,
+    pub detail: String,
+}
+
+impl Refusal {
+    pub(crate) fn new(reason: Reason, detail: impl Into<String>) -> Self {
+        Refusal {
+            reason,
+            detail: detail.into(),
         }
     }
 }
 
-pub(crate) type Refusal = (Reason, String);
-pub(crate) type R = Result<CryptoResponse, Refusal>;
+impl std::fmt::Display for Refusal {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}: {}", self.reason, self.detail)
+    }
+}
+
+impl std::error::Error for Refusal {}
 
 pub(crate) fn e<E: std::fmt::Display>(reason: Reason) -> impl FnOnce(E) -> Refusal {
-    move |err| (reason, err.to_string())
+    move |err| Refusal::new(reason, err.to_string())
 }
 
-pub fn refused(op: i32, reason: Reason, detail: &str) -> CryptoResponse {
-    let mut d = detail.to_string();
-    if d.len() > MAX_DETAIL {
-        let mut cut = MAX_DETAIL;
-        while !d.is_char_boundary(cut) {
-            cut -= 1;
-        }
-        d.truncate(cut);
-    }
-    CryptoResponse {
-        op,
-        status: Status::Refused as i32,
-        reason: reason as i32,
-        detail: d,
-        ..Default::default()
-    }
+/// The encryption container of a message, from its top-level packets. Stable discriminants.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[repr(u8)]
+pub enum Container {
+    None = 1,
+    /// SEIPD v1 + MDC, checked before release.
+    SeipdV1 = 2,
+    /// SEIPD v2 (AEAD).
+    SeipdV2 = 3,
+    /// GnuPG/LibrePGP OCB Encrypted Data (AEAD).
+    Ocbed = 4,
+    /// Never decrypted.
+    Sed = 5,
+    Unknown = 6,
 }
 
-/// One request in, one response out. Never panics on hostile input it can refuse (rPGP panics are bugs: the process
-/// exits and the caller shows "could not open").
-pub fn handle(mode: Mode, request: &[u8]) -> CryptoResponse {
-    let req = match CryptoRequest::decode(request) {
-        Ok(r) => r,
-        Err(err) => return refused(0, Reason::Protocol, &err.to_string()),
-    };
-    let op = Op::try_from(req.op).unwrap_or(Op::Unspecified);
-    if !mode.allows(op) {
-        return refused(req.op, Reason::Protocol, "op not allowed in this mode");
-    }
-    if mode == Mode::Keyless && !req.secret_keys.is_empty() {
-        return refused(
-            req.op,
-            Reason::Protocol,
-            "secret key sent to the keyless helper",
-        );
-    }
-    let r = match op {
-        Op::Unwrap => ops::unwrap(&req),
-        Op::ImportKey => ops::import_key(&req),
-        Op::DecryptSession => ops::decrypt_session(&req),
-        Op::VerifyDetached => ops::verify_detached(&req),
-        Op::VerifyCleartext => ops::verify_cleartext(&req),
-        Op::VerifyMessage => ops::verify_message(&req),
-        Op::CertInfo => ops::cert_info(&req),
-        Op::Unspecified => Err((Reason::Protocol, "unknown op".into())),
-    };
-    match r {
-        Ok(mut resp) => {
-            resp.op = req.op;
-            resp.status = Status::Ok as i32;
-            resp
-        }
-        Err((reason, detail)) => refused(req.op, reason, &detail),
-    }
+/// A session key, as [`keyed::unwrap`] returns it and [`keyless::decrypt`] takes it.
+#[derive(Clone, PartialEq, Eq)]
+pub enum SessionKey {
+    /// From a v3 PKESK: RFC 9580 symmetric algorithm id and key.
+    V3 { sym_alg: u8, key: Vec<u8> },
+    /// From a v6 PKESK.
+    V6 { key: Vec<u8> },
 }
 
-/// [`handle`], encoded.
-pub fn handle_bytes(mode: Mode, request: &[u8]) -> Vec<u8> {
-    handle(mode, request).encode_to_vec()
+/// A transferable secret key (armored or binary) and its passphrase.
+#[derive(Clone, Copy)]
+pub struct SecretKey<'a> {
+    pub key: &'a [u8],
+    pub passphrase: Option<&'a [u8]>,
+}
+
+/// Verdict for one data signature. Stable discriminants.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[repr(u8)]
+pub enum SigStatus {
+    Good = 1,
+    /// Cryptographic failure.
+    Bad = 2,
+    /// The issuer is not among the certificates.
+    UnknownKey = 3,
+    /// MD5/SHA-1/RIPEMD-160 (or no hash): never good.
+    WeakHash = 4,
+    /// See [`SignatureVerdict::why`].
+    KeyInvalid = 5,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SignatureVerdict {
+    pub status: SigStatus,
+    /// `WHY_*` bits, set only for [`SigStatus::KeyInvalid`].
+    pub why: u32,
+    /// Issuer fingerprint, or key id when the signature has no fingerprint (empty when it has neither).
+    pub issuer: Vec<u8>,
+    /// Signature creation time (Unix seconds).
+    pub created: Option<u32>,
+    /// RFC 9580 hash algorithm id.
+    pub hash_alg: Option<u8>,
+    /// The issuing certificate, when it is among the certificates.
+    pub signer: Option<Signer>,
+    /// Intended Recipient Fingerprint subpackets (hashed area).
+    pub intended_recipients: Vec<Vec<u8>>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Signer {
+    /// Primary key fingerprint.
+    pub cert: Vec<u8>,
+    /// Fingerprint of the signing (sub)key.
+    pub key: Vec<u8>,
+    /// Self-certified User IDs.
+    pub uids: Vec<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct KeyInfo {
+    pub fingerprint: Vec<u8>,
+    /// A valid self-signature binds the key.
+    pub valid: bool,
+    pub sign: bool,
+    pub encrypt: bool,
+    pub revoked: bool,
+    /// Expiry (Unix seconds); `None` never expires.
+    pub expires: Option<u32>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CertInfo {
+    pub fingerprint: Vec<u8>,
+    /// Key version: 4 or 6.
+    pub version: u8,
+    pub revoked: bool,
+    /// Self-certified User IDs.
+    pub uids: Vec<String>,
+    /// `[0]` is the primary key.
+    pub keys: Vec<KeyInfo>,
+}
+
+/// [`keyless::decrypt`]: the plaintext and the verdicts of the signatures inside it (combined form).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Decrypted {
+    pub container: Container,
+    pub pkesk_count: u32,
+    pub signatures: Vec<SignatureVerdict>,
+    pub payload: Vec<u8>,
+}
+
+/// [`keyless::verify_cleartext`], [`keyless::verify_message`]: the signed text or literal data, and the verdicts.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Verified {
+    pub signatures: Vec<SignatureVerdict>,
+    pub payload: Vec<u8>,
+}
+
+/// [`keyed::import_key`].
+#[derive(Clone)]
+pub struct ImportedKey {
+    /// Binary transferable secret key, passphrase removed, secret MPIs canonical.
+    pub unprotected_key: Vec<u8>,
+    /// Binary transferable public key of the same key.
+    pub public_cert: Vec<u8>,
+    pub info: CertInfo,
 }

@@ -1,20 +1,18 @@
-//! pgpsplit's keyed key-import path on attacker-controlled key material:
-//! the GnuPG secret-MPI re-encoder `mpi::canonical_secret_mpis`, which walks packet framing and MPIs itself before
-//! rPGP sees the key, and the whole OP_IMPORT_KEY op in the keyed mode. The first byte picks the path:
+//! The keyed key-import path on attacker-controlled key material: the GnuPG secret-MPI re-encoder
+//! `canonical_secret_mpis`, which walks packet framing and MPIs itself before rPGP sees the key, and the whole
+//! `keyed::import_key`. The first byte picks the path:
 //! - 0: the re-encoder on the raw bytes;
 //! - 1: the rest is a secret-key packet *body*, framed here as tag 5 or 7 in the new or old format, so mutations go to
 //!   the version/algorithm/MPI walk instead of the framing;
-//! - 2: OP_IMPORT_KEY through `handle_bytes(Mode::Keyed, ..)` (re-encoder, rPGP parse, password removal, bindings).
+//! - 2: `keyed::import_key` (re-encoder, rPGP parse, password removal, bindings).
 //!
 //! Invariants of the re-encoder (any input): never panics; idempotent (its output is already canonical, so a second
 //! pass changes nothing); grows the input by at most 4 bytes per packet (a re-emitted packet gets a 6-byte header,
 //! the original had at least 2, and the canonical body is never longer).
 #![no_main]
 
-use pgpsplit::{Mode, handle_bytes, mpi::canonical_secret_mpis};
-use proto::v1::crypto::{CryptoRequest, Op, SecretKey};
 use libfuzzer_sys::fuzz_target;
-use prost::Message;
+use pgpsplit::{SecretKey, canonical_secret_mpis, keyed};
 
 fn check(input: Vec<u8>) {
     let len = input.len();
@@ -50,16 +48,11 @@ fuzz_target!(|data: &[u8]| {
             check(pkt);
         }
         _ => {
-            let passphrase = (sel & 0x10 != 0).then(|| b"fuzz".to_vec());
-            let req = CryptoRequest {
-                op: Op::ImportKey as i32,
-                secret_keys: vec![SecretKey {
-                    key: rest.to_vec(),
-                    passphrase,
-                }],
-                ..Default::default()
-            };
-            let _ = handle_bytes(Mode::Keyed, &req.encode_to_vec());
+            let passphrase = (sel & 0x10 != 0).then_some(&b"fuzz"[..]);
+            let _ = keyed::import_key(SecretKey {
+                key: rest,
+                passphrase,
+            });
         }
     }
 });

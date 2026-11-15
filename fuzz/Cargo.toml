@@ -1,0 +1,30 @@
+[package]
+name = "pgpsplit-fuzz"
+version = "0.0.0"
+edition = "2024"
+license = "MIT"
+publish = false
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+pgpsplit = { path = ".." }
+
+[[bin]]
+name = "packets"
+path = "fuzz_targets/packets.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "import_key"
+path = "fuzz_targets/import_key.rs"
+test = false
+doc = false
+bench = false
+
+[workspace]
+members = ["."]

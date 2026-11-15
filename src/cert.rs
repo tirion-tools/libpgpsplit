@@ -1,21 +1,19 @@
 //! Certificate semantics rPGP leaves to the caller: binding validity, key flags, expiry, revocation, and the verdict
-//! for one data signature.
+//! for one data signature. Expiry is judged at signing time only; a caller that cares whether a key has expired by
+//! now compares [`crate::KeyInfo::expires`] with its own clock.
 
 use std::io::BufReader;
 
-use proto::v1::crypto::{
-    CertInfo, KeyInfo, SignatureVerdict, signature_verdict::Status as SigStatus,
-};
 use pgp::composed::{Deserializable, SignedPublicKey};
 use pgp::crypto::hash::HashAlgorithm;
 use pgp::packet::{Signature, SignatureType, SubpacketData};
 use pgp::types::{Fingerprint, KeyDetails, KeyId, KeyVersion, Tag};
 
-pub const WHY_REVOKED: u32 = 1;
-pub const WHY_NO_VALID_BINDING: u32 = 2;
-pub const WHY_NOT_SIGNING_CAPABLE: u32 = 4;
-pub const WHY_EXPIRED_AT_SIGNING: u32 = 8;
-pub const WHY_PREDATES_KEY: u32 = 16;
+use crate::packets::is_armored;
+use crate::{
+    CertInfo, KeyInfo, SigStatus, SignatureVerdict, Signer, WHY_EXPIRED_AT_SIGNING,
+    WHY_NO_VALID_BINDING, WHY_NOT_SIGNING_CAPABLE, WHY_PREDATES_KEY, WHY_REVOKED,
+};
 
 pub struct KeyEntry {
     pub fpr: Fingerprint,
@@ -50,7 +48,7 @@ fn issued_by_primary(sig: &Signature, primary: &impl KeyDetails) -> bool {
 }
 
 pub fn load_cert(bytes: &[u8]) -> Option<Cert> {
-    let cert = if crate::ops::is_armored(bytes) {
+    let cert = if is_armored(bytes) {
         SignedPublicKey::from_armor_single(BufReader::new(bytes))
             .ok()?
             .0
@@ -171,15 +169,14 @@ pub fn from_public(cert: SignedPublicKey) -> Cert {
     }
 }
 
-pub fn load_certs(certs: &[Vec<u8>]) -> Vec<Cert> {
-    certs.iter().filter_map(|c| load_cert(c)).collect()
+pub fn load_certs<C: AsRef<[u8]>>(certs: &[C]) -> Vec<Cert> {
+    certs.iter().filter_map(|c| load_cert(c.as_ref())).collect()
 }
 
 pub fn info(c: &Cert) -> CertInfo {
     CertInfo {
-        valid: true,
         fingerprint: c.keys[0].fpr.as_bytes().to_vec(),
-        version: u8::from(c.cert.primary_key.version()) as u32,
+        version: u8::from(c.cert.primary_key.version()),
         revoked: c.revoked,
         uids: c.uids.clone(),
         keys: c
@@ -191,7 +188,7 @@ pub fn info(c: &Cert) -> CertInfo {
                 sign: k.can_sign,
                 encrypt: k.can_encrypt,
                 revoked: k.revoked,
-                expires_unix: k.expires.map(u64::from).unwrap_or(0),
+                expires: k.expires,
             })
             .collect(),
     }
@@ -232,16 +229,19 @@ pub fn judge(
     sig: &Signature,
     check: &dyn Fn(&Cert, usize) -> bool,
 ) -> SignatureVerdict {
-    let created = sig.created().map(ts).unwrap_or(0);
+    let created = sig.created().map(ts);
     let mut v = SignatureVerdict {
+        status: SigStatus::UnknownKey,
+        why: 0,
         issuer: sig
             .issuer_fingerprint()
             .first()
             .map(|f| f.as_bytes().to_vec())
             .or_else(|| sig.issuer_key_id().first().map(|k| k.as_ref().to_vec()))
             .unwrap_or_default(),
-        created_unix: created as u64,
-        hash_alg: sig.hash_alg().map(|h| u8::from(h) as u32).unwrap_or(0),
+        created,
+        hash_alg: sig.hash_alg().map(u8::from),
+        signer: None,
         intended_recipients: sig
             .config()
             .map(|c| {
@@ -255,20 +255,21 @@ pub fn judge(
                     .collect()
             })
             .unwrap_or_default(),
-        ..Default::default()
     };
     let Some((c, i)) = find_signer(certs, sig) else {
-        v.status = SigStatus::UnknownKey as i32;
         return v;
     };
     let k = &c.keys[i];
-    v.signer_cert = c.keys[0].fpr.as_bytes().to_vec();
-    v.signer_key = k.fpr.as_bytes().to_vec();
-    v.uids = c.uids.clone();
+    v.signer = Some(Signer {
+        cert: c.keys[0].fpr.as_bytes().to_vec(),
+        key: k.fpr.as_bytes().to_vec(),
+        uids: c.uids.clone(),
+    });
     if weak(sig.hash_alg()) {
-        v.status = SigStatus::WeakHash as i32;
+        v.status = SigStatus::WeakHash;
         return v;
     }
+    let created = created.unwrap_or(0);
     let mut why = 0;
     if c.revoked || k.revoked {
         why |= WHY_REVOKED;
@@ -292,6 +293,6 @@ pub fn judge(
         SigStatus::KeyInvalid
     } else {
         SigStatus::Good
-    } as i32;
+    };
     v
 }
