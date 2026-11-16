@@ -1,11 +1,13 @@
 //! pgpsplit: OpenPGP split decryption and verification on rPGP.
 //!
 //! The API is split by what each half may hold:
-//! - [`keyed`] takes secret keys: [`keyed::unwrap`] parses only the PKESK packets in front of the encrypted payload and
-//!   returns the session key; [`keyed::import_key`] removes the passphrase and canonicalises GnuPG's non-minimal
-//!   secret MPIs ([`canonical_secret_mpis`]).
-//! - [`keyless`] never takes a secret key: decrypt with a session key, verify, certificate info. It parses the
-//!   attacker-controlled payload (decompression, literal data, signatures).
+//! - [`keyed`] takes (or makes) secret keys: [`keyed::unwrap`] parses only the PKESK packets in front of the encrypted
+//!   payload and returns the session key; [`keyed::import_key`] removes the passphrase and canonicalises GnuPG's
+//!   non-minimal secret MPIs ([`canonical_secret_mpis`]); [`keyed::sign`] makes a detached or inline signature;
+//!   [`keyed::generate_key`] makes a new key.
+//! - [`keyless`] never takes a secret key: decrypt with a session key, verify, certificate info, and encryption to
+//!   certificates ([`keyless::encrypt`]). It parses the attacker-controlled payload (decompression, literal data,
+//!   signatures).
 //!
 //! Run each half in its own process: the process holding the key then never parses the payload, and the process
 //! parsing the payload never holds the key.
@@ -197,9 +199,47 @@ pub struct Verified {
     pub payload: Vec<u8>,
 }
 
-/// [`keyed::import_key`].
+/// What [`keyed::sign`] produces.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SignMode {
+    /// An ASCII-armored detached binary-document signature over the exact bytes (RFC 3156 §5 multipart/signed).
+    Detached,
+    /// Binary OpenPGP packets: one-pass signature, literal data (binary, no file name, date 0), signature. The input of
+    /// [`keyless::encrypt`] with `data_is_message` (RFC 3156 §6.2 combined sign-then-encrypt).
+    Inline,
+}
+
+/// [`keyed::sign`]: the signature (detached) or signed message (inline), and its hash algorithm.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Signed {
+    pub payload: Vec<u8>,
+    /// RFC 9580 hash algorithm id (8 = SHA-256), e.g. for the RFC 3156 `micalg` parameter.
+    pub hash_alg: u8,
+}
+
+/// [`keyed::generate_key`]: the key and its revocation certificate.
 #[derive(Clone)]
-pub struct ImportedKey {
+pub struct GeneratedKey {
+    pub key: KeyPair,
+    /// ASCII-armored revocation certificate: the primary key and a key revocation signature (reason "no reason
+    /// specified"). Anyone holding it can revoke the key: store it like the secret key, apart from it.
+    pub revocation: Vec<u8>,
+}
+
+/// [`keyed::extend_expiry`].
+#[derive(Clone)]
+pub struct RenewedKey {
+    /// Binary transferable secret key with the new self-signatures; the secret key packets as given (protection
+    /// unchanged).
+    pub secret_key: Vec<u8>,
+    /// Binary transferable public key of the same key.
+    pub public_cert: Vec<u8>,
+    pub info: CertInfo,
+}
+
+/// [`keyed::import_key`], [`keyed::generate_key`].
+#[derive(Clone)]
+pub struct KeyPair {
     /// Binary transferable secret key, passphrase removed, secret MPIs canonical.
     pub unprotected_key: Vec<u8>,
     /// Binary transferable public key of the same key.

@@ -37,7 +37,7 @@ fn ts(t: pgp::types::Timestamp) -> u32 {
     t.as_secs()
 }
 
-fn issued_by_primary(sig: &Signature, primary: &impl KeyDetails) -> bool {
+pub(crate) fn issued_by_primary(sig: &Signature, primary: &impl KeyDetails) -> bool {
     let fp = primary.fingerprint();
     let id = primary.legacy_key_id();
     let fps = sig.issuer_fingerprint();

@@ -1,0 +1,3 @@
+Content-Type: text/plain; charset=utf-8
+
+libpgpsplit send vector: signed by a corpus key, cross-checked with GnuPG.

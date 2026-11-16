@@ -11,6 +11,9 @@ split in two:
 Run each half in its own process. The process holding the key then never parses hostile payload, and the process
 parsing hostile payload never holds the key.
 
+The send side follows the same split: signing, key generation and key renewal hold secret keys (`keyed`); encryption
+to certificates needs none (`keyless`).
+
 ## Builds on
 
 This crate is glue around rPGP (`pgp` 0.21.1, MIT OR Apache-2.0); it does not replace it, and fixes found in it go
@@ -28,7 +31,11 @@ What it adds:
 - a verdict per data signature: good, bad, unknown key, weak hash (MD5, SHA-1, RIPEMD-160: never good), or key invalid
   with the reasons;
 - a re-encoder for the non-minimal secret MPIs some GnuPG versions write (about 1 in 256 Ed25519 keys), which rPGP
-  refuses as exported (`canonical_secret_mpis`).
+  refuses as exported (`canonical_secret_mpis`);
+- on the send side: the choice of the signing (sub)key and of every recipient's encryption keys by the same
+  certificate semantics as verification, signatures dated by the caller (so v4 signatures are deterministic), one
+  generation profile with an explicit lifetime and a revocation certificate, and renewal of a key's expiry by
+  re-signing its self-signatures (rPGP's key builder has no expiry and dates everything with the clock).
 
 Related projects, and why this crate does not use them:
 
@@ -45,13 +52,16 @@ Related projects, and why this crate does not use them:
 ## Scope
 
 In scope: decrypting PKESK-encrypted messages (v3 and v6 PKESK; SEIPD v1, SEIPD v2, GnuPG's OCB Encrypted Data),
-verifying detached, cleartext and inline signatures, certificate information, and importing a secret key (passphrase
-removed, MPIs canonical).
+verifying detached, cleartext and inline signatures, certificate information, importing a secret key (passphrase
+removed, MPIs canonical), and the send side: detached and inline (one-pass) signatures, encryption to certificates
+(SEIPD v1, or v2 when every recipient is a v6 key), generating a v4 Ed25519 + Cv25519 key with its revocation
+certificate, and extending a v4 key's expiry.
 
 Not in scope:
 - MIME (PGP/MIME, inline PGP detection, protected headers): the input is the OpenPGP data itself;
 - key storage, key discovery and trust (web of trust, TOFU, WKD);
-- sign, encrypt and key generation;
+- policy: key lifetime, when to renew, which recipients to encrypt to are the caller's parameters;
+- compression on the send side, cleartext signatures, v6 key generation and renewal;
 - the process boundary: launching, confining and talking to the two halves is the caller's;
 - symmetric (SKESK, password-only) decryption.
 
@@ -72,6 +82,13 @@ let v = keyless::verify_message(inline_signed_message, &certs)?;      // Verifie
 let info = keyless::cert_info(cert);                                  // Option<CertInfo>
 let imported = keyed::import_key(SecretKey { key, passphrase: Some(b"...") })?;
 // imported.unprotected_key, imported.public_cert, imported.info
+
+// send side
+let s = keyed::sign(secret, data, SignMode::Detached, &[], now)?;     // Signed { payload, hash_alg }
+let inline = keyed::sign(secret, data, SignMode::Inline, &[recipient_fpr], now)?;
+let msg = keyless::encrypt(&inline.payload, &certs, true, now)?;      // armored; false = data in a literal packet
+let g = keyed::generate_key(&["Name <addr>"], now, Some(lifetime))?;  // GeneratedKey { key: KeyPair, revocation }
+let r = keyed::extend_expiry(secret, now, Some(lifetime))?;           // RenewedKey { secret_key, public_cert, info }
 ```
 
 - Inputs may be armored or binary. `certs` is any slice of byte buffers; a certificate that does not parse is
@@ -88,6 +105,15 @@ let imported = keyed::import_key(SecretKey { key, passphrase: Some(b"...") })?;
   There is no "now" parameter. A caller that wants to know whether a key has expired by now compares
   `KeyInfo::expires` with its own clock.
 - The literal-data file name is never returned. There is no session-key cache.
+- **Send side.** Creation times are parameters, never the clock. A signature uses the newest valid signing subkey,
+  else the primary key, valid at that time; SHA-256 or the key's stronger default. `encrypt` refuses the whole request
+  (`BadKey`, with the fingerprint or position) when one certificate does not parse or has no valid, unexpired,
+  unrevoked encryption key at `now`, and encrypts to every such key of every certificate with AES-256. Generated keys
+  are returned unprotected; `extend_expiry` returns the secret key packets as given (protection unchanged), replaces
+  the superseded self-signatures and gives signing subkeys a fresh back-signature. The revocation certificate is the
+  primary key plus a key revocation signature (reason 0), as GnuPG and sq pre-generate it.
+- **Randomness.** Key generation, session keys, encryption and v6 signature salts use the operating system's RNG
+  (`getrandom(2)` with no flags, through `rand_core`'s `OsRng`). v4 signatures need none.
 
 ## Security model
 
@@ -118,8 +144,12 @@ let imported = keyed::import_key(SecretKey { key, passphrase: Some(b"...") })?;
 - `tests/corpus.rs` runs every fixture of `tests/corpus/eml` (48 messages from GnuPG 2.4.7 and 2.4.9, RNP 0.17.1,
   sq 1.3.1, EFAIL and signature-spoofing reconstructions) through the library with the test keys in
   `tests/corpus/keys`, and checks each outcome against a fixed table.
-- `fuzz/` holds two cargo-fuzz targets and their seed corpora: `packets` (structural scan, keyless decrypt, every
-  verify, cert info) and `import_key` (the MPI re-encoder's invariants and the whole import).
+- `tests/send.rs`: signing (determinism of v4 signatures, v6 salts, intended recipients, refusals), key generation and
+  its revocation certificate, renewal (expiry moved, protection kept, signing subkeys), encryption round trips, and
+  the GnuPG vectors of `tests/corpus/send` (see its README.txt).
+- `fuzz/` holds three cargo-fuzz targets and their seed corpora: `packets` (structural scan, keyless decrypt, every
+  verify, cert info), `import_key` (the MPI re-encoder's invariants and the whole import) and `send` (signing with and
+  renewing arbitrary secret keys, encryption to arbitrary certificates, the `data_is_message` input).
 
 The secret keys under `tests/corpus/keys` are throwaway test keys generated for the corpus; they protect nothing.
 

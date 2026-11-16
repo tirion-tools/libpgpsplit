@@ -4,6 +4,20 @@ use std::io::{BufReader, Read};
 
 use crate::{Container, MAX_PLAINTEXT, Reason, Refusal, e};
 
+/// Already-encoded packets, armored as they are.
+pub(crate) struct Encoded<'a>(pub(crate) &'a [u8]);
+
+impl pgp::ser::Serialize for Encoded<'_> {
+    fn to_writer<W: std::io::Write>(&self, w: &mut W) -> pgp::errors::Result<()> {
+        w.write_all(self.0)?;
+        Ok(())
+    }
+
+    fn write_len(&self) -> usize {
+        self.0.len()
+    }
+}
+
 /// Most top-level packets [`scan`] looks at.
 const MAX_SCANNED: usize = 64;
 

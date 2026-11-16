@@ -26,5 +26,12 @@ test = false
 doc = false
 bench = false
 
+[[bin]]
+name = "send"
+path = "fuzz_targets/send.rs"
+test = false
+doc = false
+bench = false
+
 [workspace]
 members = ["."]

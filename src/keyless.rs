@@ -1,19 +1,27 @@
-//! The half that parses the attacker-controlled payload. No function here takes a secret key.
+//! The half that parses the attacker-controlled payload, and encrypts to certificates. No function here takes a
+//! secret key.
 //!
-//! `certs` are transferable public keys (armored or binary); one that does not parse is ignored.
+//! `certs` are transferable public keys (armored or binary); for decryption and verification one that does not parse
+//! is ignored, for [`encrypt`] it is refused.
 
 use std::io::{BufReader, Read};
 
+use pgp::armor::BlockType;
 use pgp::composed::{
     CleartextSignedMessage, DecryptionOptions, Deserializable, DetachedSignature, Message,
-    PlainSessionKey, TheRing,
+    MessageBuilder, PlainSessionKey, TheRing,
 };
+use pgp::crypto::aead::{AeadAlgorithm, ChunkSize};
 use pgp::crypto::sym::SymmetricKeyAlgorithm;
+use pgp::packet::{PacketTrait, PublicKeyEncryptedSessionKey, SymEncryptedProtectedData};
+use pgp::types::{KeyDetails, KeyVersion};
+use rand_core::OsRng;
 
 use crate::cert::{self, Cert};
-use crate::packets::{container, dearmor, is_armored, refuse_sed, scan};
+use crate::packets::{Encoded, container, dearmor, is_armored, refuse_sed, scan};
 use crate::{
-    CertInfo, Decrypted, MAX_PLAINTEXT, Reason, Refusal, SessionKey, SignatureVerdict, Verified, e,
+    CertInfo, Container, Decrypted, MAX_PLAINTEXT, Reason, Refusal, SessionKey, SignatureVerdict,
+    Verified, e,
 };
 
 /// Run `$body` with `$k` bound to the concrete key type of component `$i` of `$c` (0 = primary).
@@ -213,4 +221,130 @@ pub fn verify_message<C: AsRef<[u8]>>(message: &[u8], certs: &[C]) -> Result<Ver
 /// Certificate semantics of one transferable public key (armored or binary); `None` when it does not parse.
 pub fn cert_info(cert: &[u8]) -> Option<CertInfo> {
     cert::load_cert(cert).map(|c| cert::info(&c))
+}
+
+fn hex(b: &[u8]) -> String {
+    b.iter().map(|x| format!("{x:02X}")).collect()
+}
+
+/// The components of `c` that can take a session key at `now`: valid binding, encryption flags, not revoked, created
+/// by `now`, not expired at `now`; none when the certificate itself is revoked, unbound or expired.
+fn encryption_keys(c: &Cert, now: u32) -> Vec<usize> {
+    let p = &c.keys[0];
+    if c.revoked || !p.valid || p.expires.is_some_and(|x| now >= x) {
+        return vec![];
+    }
+    c.keys
+        .iter()
+        .enumerate()
+        .filter(|(_, k)| {
+            k.valid
+                && k.can_encrypt
+                && !k.revoked
+                && k.created <= now
+                && k.expires.is_none_or(|x| now < x)
+        })
+        .map(|(i, _)| i)
+        .collect()
+}
+
+/// Encrypts `data` to every certificate in `certs` (each recipient, the sender's own certificate included) and returns
+/// an ASCII-armored OpenPGP message (RFC 3156 §4 body). Each certificate's usable encryption keys at `now` (Unix
+/// seconds) each get a PKESK; a certificate that does not parse, or has no usable encryption key, refuses the whole
+/// request with [`Reason::BadKey`] (the detail names its fingerprint or position). The container is SEIPD v2 (AES-256,
+/// OCB) when every recipient is a v6 key, else SEIPD v1 (AES-256 + MDC), which RFC 4880 implementations read; nothing
+/// is compressed. With `data_is_message`, `data` is a [`crate::SignMode::Inline`] result and is encrypted as it is
+/// (RFC 3156 §6.2); otherwise it goes into a binary literal data packet with no file name and date 0. The session key
+/// and the ciphertext are random: two calls never give the same output.
+pub fn encrypt<C: AsRef<[u8]>>(
+    data: &[u8],
+    certs: &[C],
+    data_is_message: bool,
+    now: u32,
+) -> Result<Vec<u8>, Refusal> {
+    if certs.is_empty() {
+        return Err(Refusal::new(Reason::InvalidRequest, "no recipients"));
+    }
+    let mut recipients = Vec::with_capacity(certs.len());
+    for (i, c) in certs.iter().enumerate() {
+        let c = cert::load_cert(c.as_ref()).ok_or_else(|| {
+            Refusal::new(Reason::BadKey, format!("certificate {i} does not parse"))
+        })?;
+        let keys = encryption_keys(&c, now);
+        if keys.is_empty() {
+            return Err(Refusal::new(
+                Reason::BadKey,
+                format!("{}: no valid encryption key", hex(c.keys[0].fpr.as_bytes())),
+            ));
+        }
+        recipients.push((c, keys));
+    }
+    let plain = if data_is_message {
+        // A one-pass signed (or plain literal) message: never an encrypted one, never an arbitrary blob.
+        let tags = scan(data);
+        if container(&tags) != Container::None || !matches!(tags.first(), Some((4 | 11, _))) {
+            return Err(Refusal::new(
+                Reason::InvalidRequest,
+                "data is not a signed or literal OpenPGP message",
+            ));
+        }
+        data.to_vec()
+    } else {
+        MessageBuilder::from_bytes("", data.to_vec())
+            .to_vec(OsRng)
+            .map_err(e(Reason::InvalidRequest))?
+    };
+
+    let v2 = recipients
+        .iter()
+        .all(|(c, _)| c.cert.primary_key.version() == KeyVersion::V6);
+    let sym = SymmetricKeyAlgorithm::AES256;
+    let session_key = sym.new_session_key(OsRng);
+    let mut out = Vec::new();
+    for (c, keys) in &recipients {
+        for &k in keys {
+            let pkesk = with_key!(c, k, |key| if v2 {
+                PublicKeyEncryptedSessionKey::from_session_key_v6(OsRng, &session_key, key)
+            } else {
+                PublicKeyEncryptedSessionKey::from_session_key_v3(OsRng, &session_key, sym, key)
+            })
+            .map_err(|err| {
+                Refusal::new(
+                    Reason::BadKey,
+                    format!("{}: {err}", hex(c.keys[k].fpr.as_bytes())),
+                )
+            })?;
+            pkesk
+                .to_writer_with_header(&mut out)
+                .map_err(e(Reason::InvalidRequest))?;
+        }
+    }
+    let seipd = if v2 {
+        SymEncryptedProtectedData::encrypt_seipdv2(
+            OsRng,
+            sym,
+            AeadAlgorithm::Ocb,
+            ChunkSize::default(),
+            session_key.as_ref(),
+            &plain,
+        )
+    } else {
+        SymEncryptedProtectedData::encrypt_seipdv1(OsRng, sym, session_key.as_ref(), &plain)
+    }
+    .map_err(e(Reason::InvalidRequest))?;
+    seipd
+        .to_writer_with_header(&mut out)
+        .map_err(e(Reason::InvalidRequest))?;
+
+    let mut armored = Vec::with_capacity(out.len() * 4 / 3 + 128);
+    // RFC 9580 §6.2: no CRC-24 for SEIPD v2; kept for v1, which older readers expect.
+    pgp::armor::write(&Encoded(&out), BlockType::Message, &mut armored, None, !v2)
+        .map_err(e(Reason::InvalidRequest))?;
+    if armored.len() as u64 > MAX_PLAINTEXT {
+        return Err(Refusal::new(
+            Reason::TooLarge,
+            "encrypted output over limit",
+        ));
+    }
+    Ok(armored)
 }

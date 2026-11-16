@@ -1,7 +1,7 @@
 [package]
 name = "pgpsplit"
-description = "OpenPGP split decryption on rPGP: keyed PKESK unwrap, keyless decrypt and verify, certificate semantics"
-version = "0.1.0"
+description = "OpenPGP split decryption on rPGP: keyed PKESK unwrap, keyless decrypt and verify, certificate semantics, and the send side (sign, encrypt, key generation and renewal)"
+version = "0.2.0"
 edition = "2024"
 rust-version = "1.93.1"
 license = "MIT"
@@ -11,6 +11,9 @@ publish = false
 # rPGP, pinned exactly. Only the bzip2 feature: BZip2 via bzip2 0.6 on libbz2-rs-sys (pure Rust, bzip2-1.0.6
 # licence), bounded by MAX_PLAINTEXT like ZIP/ZLIB.
 pgp = { version = "=0.21.1", default-features = false, features = ["bzip2"] }
+# The operating system's RNG (getrandom(2) with no flags) for key generation, session keys and v6 signature salts, in
+# the rand_core version rPGP's API takes.
+rand_core = { version = "0.6", features = ["getrandom"] }
 
 [lints.rust]
 unsafe_code = "forbid"
