@@ -31,7 +31,8 @@ What it adds:
 - a verdict per data signature: good, bad, unknown key, weak hash (MD5, SHA-1, RIPEMD-160: never good), or key invalid
   with the reasons;
 - a re-encoder for the non-minimal secret MPIs some GnuPG versions write (about 1 in 256 Ed25519 keys), which rPGP
-  refuses as exported (`canonical_secret_mpis`);
+  refuses as exported (`canonical_secret_mpis`); it re-encodes only a packet whose stored checksum matches, so a
+  corrupted secret is still refused;
 - on the send side: the choice of the signing (sub)key and of every recipient's encryption keys by the same
   certificate semantics as verification, signatures dated by the caller (so v4 signatures are deterministic), one
   generation profile with an explicit lifetime and a revocation certificate, and renewal of a key's expiry by
@@ -106,7 +107,9 @@ let r = keyed::extend_expiry(secret, now, Some(lifetime))?;           // Renewed
   `KeyInfo::expires` with its own clock.
 - The literal-data file name is never returned. There is no session-key cache.
 - **Send side.** Creation times are parameters, never the clock. A signature uses the newest valid signing subkey,
-  else the primary key, valid at that time; SHA-256 or the key's stronger default. `encrypt` refuses the whole request
+  else the primary key, valid at that time; SHA-256 or the key's stronger default. Before signing, a test signature
+  must verify with the signing key's public half (`BadKey` otherwise): rPGP signs with the secret alone, and the
+  two-octet checksum is the only integrity check of an unprotected secret. `encrypt` refuses the whole request
   (`BadKey`, with the fingerprint or position) when one certificate does not parse or has no valid, unexpired,
   unrevoked encryption key at `now`, and encrypts to every such key of every certificate with AES-256. Generated keys
   are returned unprotected; `extend_expiry` returns the secret key packets as given (protection unchanged), replaces
@@ -144,9 +147,10 @@ let r = keyed::extend_expiry(secret, now, Some(lifetime))?;           // Renewed
 - `tests/corpus.rs` runs every fixture of `tests/corpus/eml` (48 messages from GnuPG 2.4.7 and 2.4.9, RNP 0.17.1,
   sq 1.3.1, EFAIL and signature-spoofing reconstructions) through the library with the test keys in
   `tests/corpus/keys`, and checks each outcome against a fixed table.
-- `tests/send.rs`: signing (determinism of v4 signatures, v6 salts, intended recipients, refusals), key generation and
-  its revocation certificate, renewal (expiry moved, protection kept, signing subkeys), encryption round trips, and
-  the GnuPG vectors of `tests/corpus/send` (see its README.txt).
+- `tests/send.rs`: signing (determinism of v4 signatures, v6 salts, intended recipients, refusals, corrupted secrets),
+  key generation and its revocation certificate, renewal (expiry moved, protection kept, signing subkeys), encryption
+  round trips, and the GnuPG vectors of `tests/corpus/send` (see its README.txt). Fuzz findings are kept in
+  `tests/corpus/fuzz/<target>` with a test, and as `regress-*` seeds of the target.
 - `fuzz/` holds three cargo-fuzz targets and their seed corpora: `packets` (structural scan, keyless decrypt, every
   verify, cert info), `import_key` (the MPI re-encoder's invariants and the whole import) and `send` (signing with and
   renewing arbitrary secret keys, encryption to arbitrary certificates, the `data_is_message` input).

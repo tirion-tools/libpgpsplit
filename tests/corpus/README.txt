@@ -10,5 +10,9 @@ keys/     the secret keys and certificates the messages use. gpg*-pat.sec.asc ar
 bomb-64mib.pgp        an unencrypted ZLIB-compressed message whose literal data inflates past 64 MiB.
 bomb-bzip2-80mib.pgp  the same with BZip2 (114 bytes, 80 MiB).
 bzip2-dana.pgp        a BZip2-compressed message encrypted to gpgdeb-dana, as older PGP versions write it.
+fuzz/send/           regression inputs of the `send` fuzz target (also seeds in fuzz/corpus/send as regress-*), read by
+                     tests/send.rs `corrupted_secrets_are_refused`: gnupg-zed.sec.asc with one byte of its primary
+                     secret changed; crash-<sha1> as the fuzzer found it, .min its binary primary key, User ID and
+                     self-signature, secret-mismatch-checksum-ok the same with the checksum fixed up.
 
 Tool versions of the Debian run: gnupg 2.4.7-21+deb13u1, rnp/librnp0 0.17.1-1+b1, sq 1.3.1-2+b2.

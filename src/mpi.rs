@@ -2,7 +2,15 @@
 //! 0x00: about 1 in 256 Ed25519 keys), with the checksum over those bytes. RFC 9580 §3.2 MPIs start at the most
 //! significant non-zero bit; rPGP refuses such keys ("Invalid checksum"). Key import re-encodes the secret MPIs of
 //! unprotected (S2K usage 0) v4 secret-key packets minimally and recomputes the checksum; everything else passes
-//! through unchanged.
+//! through unchanged. The checksum is the only integrity check of an unprotected secret, so a packet is re-encoded
+//! only when its stored checksum matches the bytes as written: a corrupted secret passes through and rPGP refuses it.
+
+/// The two-octet checksum of RFC 9580 §5.5.3: the sum of the octets, mod 65536.
+fn checksum(b: &[u8]) -> [u8; 2] {
+    b.iter()
+        .fold(0u16, |a, &x| a.wrapping_add(x as u16))
+        .to_be_bytes()
+}
 
 fn mpi_end(b: &[u8], at: usize) -> Option<usize> {
     let bits = u16::from_be_bytes(b.get(at..at + 2)?.try_into().ok()?) as usize;
@@ -122,11 +130,11 @@ pub fn canonical_secret_mpis(bin: Vec<u8>) -> Vec<u8> {
                 canon.extend_from_slice(v);
                 at = end;
             }
-            if changed && at == secret.len() {
-                let sum: u16 = canon.iter().fold(0u16, |a, &x| a.wrapping_add(x as u16));
+            let stored = &body[body.len() - 2..];
+            if changed && at == secret.len() && checksum(secret) == stored {
                 let mut nb = body[..=pe].to_vec();
                 nb.extend_from_slice(&canon);
-                nb.extend_from_slice(&sum.to_be_bytes());
+                nb.extend_from_slice(&checksum(&canon));
                 new_body = Some(nb);
             }
         }
@@ -175,5 +183,17 @@ mod tests {
         let nb = &out[6..];
         assert_eq!(&nb[12..15], &[0, 7, 0x7F]);
         assert_eq!(&nb[15..], &(7u16 + 0x7F).to_be_bytes());
+    }
+
+    #[test]
+    fn non_minimal_mpi_with_a_wrong_checksum_passes_through() {
+        // As above, with the secret value corrupted (0x7F → 0x7E) after the checksum was written: re-encoding would
+        // write a fresh checksum over the corrupted value and hide it from rPGP's check.
+        let mut body = vec![4, 0, 0, 0, 0, 22, 1, 0x2B, 0, 8, 0xAA, 0];
+        body.extend_from_slice(&[0, 16, 0x00, 0x7E]);
+        body.extend_from_slice(&(0x10u16 + 0x7F).to_be_bytes());
+        let mut pkt = vec![0xC5, body.len() as u8];
+        pkt.extend_from_slice(&body);
+        assert_eq!(canonical_secret_mpis(pkt.clone()), pkt);
     }
 }

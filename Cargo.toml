@@ -1,7 +1,7 @@
 [package]
 name = "pgpsplit"
 description = "OpenPGP split decryption on rPGP: keyed PKESK unwrap, keyless decrypt and verify, certificate semantics, and the send side (sign, encrypt, key generation and renewal)"
-version = "0.2.0"
+version = "0.2.2"
 edition = "2024"
 rust-version = "1.93.1"
 license = "MIT"

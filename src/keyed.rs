@@ -18,7 +18,7 @@ use pgp::packet::{
 use pgp::ser::Serialize;
 use pgp::types::{
     CompressionAlgorithm, DecryptionKey, EskType, Fingerprint, KeyDetails, KeyVersion, Password,
-    PkeskVersion, SigningKey, Tag, Timestamp,
+    PkeskVersion, SigningKey, Tag, Timestamp, VerifyingKey,
 };
 use rand_core::OsRng;
 
@@ -164,13 +164,13 @@ fn key_pair(sk: &SignedSecretKey) -> Result<KeyPair, Refusal> {
     })
 }
 
-/// The signing component of `sk` valid at `created`, and whether its secret is passphrase-protected: the newest valid
-/// signing subkey (bound with a back-signature), else the primary key. Validity, revocation and expiry are judged by
-/// the same certificate semantics as verification.
+/// The signing component of `sk` valid at `created`, its public half, and whether its secret is passphrase-protected:
+/// the newest valid signing subkey (bound with a back-signature), else the primary key. Validity, revocation and expiry
+/// are judged by the same certificate semantics as verification.
 fn signing_component(
     sk: &SignedSecretKey,
     created: u32,
-) -> Result<(&dyn SigningKey, bool), Refusal> {
+) -> Result<(&dyn SigningKey, &dyn VerifyingKey, bool), Refusal> {
     let c = cert::from_public(sk.to_public_key());
     let primary = &c.keys[0];
     let usable = |k: &cert::KeyEntry| {
@@ -190,7 +190,7 @@ fn signing_component(
         .ok_or_else(|| Refusal::new(Reason::BadKey, "no valid signing key"))?;
     if best.fpr == sk.primary_key.fingerprint() {
         let k = &sk.primary_key;
-        return Ok((k, k.secret_params().is_encrypted()));
+        return Ok((k, k.public_key(), k.secret_params().is_encrypted()));
     }
     sk.secret_subkeys
         .iter()
@@ -198,10 +198,33 @@ fn signing_component(
         .map(|s| {
             (
                 &s.key as &dyn SigningKey,
+                s.key.public_key() as &dyn VerifyingKey,
                 s.key.secret_params().is_encrypted(),
             )
         })
         .ok_or_else(|| Refusal::new(Reason::BadKey, "signing key has no secret part"))
+}
+
+/// Refuses a secret that does not belong to its public key: a test signature must verify with the public half. The
+/// two-octet checksum is the only integrity check of an unprotected secret, and rPGP signs with the secret alone, so a
+/// corrupted or substituted secret would otherwise produce signatures that no one can verify.
+fn check_pair(
+    signer: &dyn SigningKey,
+    public: &dyn VerifyingKey,
+    pw: &Password,
+    hash: HashAlgorithm,
+    locked: impl Fn(pgp::errors::Error) -> Refusal,
+) -> Result<(), Refusal> {
+    let digest = hash
+        .digest(b"libpgpsplit key pair check")
+        .map_err(e(Reason::BadKey))?;
+    let sig = signer.sign(pw, hash, &digest).map_err(locked)?;
+    public.verify(hash, &digest, &sig).map_err(|_| {
+        Refusal::new(
+            Reason::BadKey,
+            "the secret key does not match its public key",
+        )
+    })
 }
 
 /// SHA-256, or the key's own stronger default (P-384/P-521 and v6 Ed448 ask for more). Never SHA-1.
@@ -247,7 +270,7 @@ pub fn sign(
     created: u32,
 ) -> Result<Signed, Refusal> {
     let sk = parse_secret_key(key.key)?;
-    let (signer, protected) = signing_component(&sk, created)?;
+    let (signer, public, protected) = signing_component(&sk, created)?;
     let pw = password(key.passphrase);
     let mut hashed = vec![
         sub(SubpacketData::SignatureCreationTime(Timestamp::from_secs(
@@ -275,6 +298,7 @@ pub fn sign(
         };
         Refusal::new(reason, err.to_string())
     };
+    check_pair(signer, public, &pw, hash, locked)?;
     let out = match mode {
         SignMode::Detached => DetachedSignature::sign_binary_data_with_subpackets(
             OsRng,

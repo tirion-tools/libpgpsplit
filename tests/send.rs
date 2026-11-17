@@ -149,6 +149,43 @@ fn signing_refusals() {
     );
 }
 
+/// Fuzz inputs of the `send` target (tests/corpus/fuzz/send; also seeds in fuzz/corpus/send): selector byte 0, then
+/// `gnupg-zed.sec.asc` (whose unprotected primary secret GnuPG wrote as a non-minimal MPI) with one byte of that secret
+/// changed. `crash-*` keeps the stored checksum (armored as found by the fuzzer, and `.min`: the binary primary key,
+/// User ID and self-signature); the MPI re-encoder used to replace it with a fresh one, so the corrupted key imported
+/// and signed, and its signatures verified Bad. `secret-mismatch-checksum-ok` fixes the checksum up too, which only
+/// the key pair check catches.
+#[test]
+fn corrupted_secrets_are_refused() {
+    for (name, checksum_ok) in [
+        ("crash-b1d313542afe2e568314d8ef4f6a313d4e4ddbef", false),
+        ("crash-b1d313542afe2e568314d8ef4f6a313d4e4ddbef.min", false),
+        ("secret-mismatch-checksum-ok", true),
+    ] {
+        let input = read(&format!("fuzz/send/{name}"));
+        let k = sk(&input[1..]);
+        for mode in [SignMode::Detached, SignMode::Inline] {
+            let r = keyed::sign(k, DATA, mode, &[], NOW).unwrap_err();
+            assert_eq!(r.reason, Reason::BadKey, "{name} {mode:?}: {r}");
+        }
+        let Err(r) = keyed::extend_expiry(k, NOW, Some(THREE_YEARS)) else {
+            panic!("{name}: renewed");
+        };
+        assert_eq!(r.reason, Reason::BadKey, "{name}: {r}");
+        // The checksum is the only integrity check of an unprotected secret: import refuses a mismatch, and keeps
+        // a key whose checksum is right (it still never signs).
+        assert_eq!(keyed::import_key(k).is_ok(), checksum_ok, "{name}");
+    }
+    // The key the inputs were made from still imports, signs and verifies Good.
+    let zed = key("gnupg-zed.sec.asc");
+    let imported = keyed::import_key(sk(&zed)).unwrap();
+    for k in [&zed, &imported.unprotected_key] {
+        let sig = sign(sk(k), DATA, SignMode::Detached, &[], NOW);
+        let v = keyless::verify_detached(DATA, &sig, &[&imported.public_cert]).unwrap();
+        assert_eq!(v.status, SigStatus::Good);
+    }
+}
+
 #[test]
 fn generated_key_has_the_profile() {
     let k = generated(
